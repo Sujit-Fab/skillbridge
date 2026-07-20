@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 
 type SponsorButtonProps = {
   candidateId: string;
@@ -9,9 +9,9 @@ type SponsorButtonProps = {
 };
 
 export function SponsorButton({ candidateId, companyId, alreadySponsoring }: SponsorButtonProps) {
-  const [status, setStatus] = useState(alreadySponsoring ? "already" : "idle");
+  const [status, setStatus] = useState<"idle" | "already" | "sponsored">(alreadySponsoring ? "already" : "idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (status === "already") {
     return <span className="inline-flex rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600">Already sponsoring</span>;
@@ -25,9 +25,12 @@ export function SponsorButton({ candidateId, companyId, alreadySponsoring }: Spo
     <div className="inline-flex flex-col gap-2">
       <button
         type="button"
-        disabled={isPending}
-        onClick={() => {
-          startTransition(async () => {
+        disabled={isSubmitting}
+        onClick={async () => {
+          setIsSubmitting(true);
+          setErrorMessage(null);
+
+          try {
             const response = await fetch("/api/sponsorships", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -35,18 +38,22 @@ export function SponsorButton({ candidateId, companyId, alreadySponsoring }: Spo
             });
             const payload = await response.json().catch(() => ({}));
 
-            if (!response.ok) {
+            if (!response.ok || !payload.sponsorship?.id) {
               setErrorMessage(payload.error ?? "Unable to sponsor right now");
               return;
             }
 
-            setErrorMessage(null);
             setStatus(payload.alreadyExists ? "already" : "sponsored");
-          });
+          } catch (error) {
+            console.error("Sponsor button request failed", { error, candidateId, companyId });
+            setErrorMessage("Unable to sponsor right now");
+          } finally {
+            setIsSubmitting(false);
+          }
         }}
         className="inline-flex rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isPending ? "Sponsoring..." : "Sponsor this candidate"}
+        {isSubmitting ? "Sponsoring..." : "Sponsor this candidate"}
       </button>
       {errorMessage ? <span className="text-sm font-medium text-red-600">{errorMessage}</span> : null}
     </div>
