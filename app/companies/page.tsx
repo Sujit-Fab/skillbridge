@@ -1,0 +1,67 @@
+import Link from "next/link";
+
+import { createAdminClient } from "@/lib/supabase/admin";
+
+export const dynamic = "force-dynamic";
+
+type Company = {
+  id: string;
+  name: string;
+  target_roles: string[] | null;
+};
+
+export default async function CompaniesPage() {
+  const supabase = createAdminClient();
+
+  if (!supabase) {
+    console.error("Failed to initialize Supabase admin client for companies page", {
+      hasSupabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()),
+      hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
+    });
+    throw new Error("Failed to load companies");
+  }
+
+  const { data: companies, error } = await supabase
+    .from("companies")
+    .select("id, name, target_roles")
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("Failed to fetch companies", { error });
+    throw new Error("Failed to load companies");
+  }
+
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-brand-50 via-slate-50 to-white px-4 py-10 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-5xl">
+        <div className="mb-8">
+          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-brand-700">Corporate dashboard</p>
+          <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">Companies</h1>
+          <p className="mt-3 max-w-2xl text-lg text-slate-600">
+            Browse sponsor companies and review public candidates who are ready for role-aligned support.
+          </p>
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {(companies as Company[] | null)?.length ? (companies as Company[]).map((company) => (
+            <article key={company.id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-slate-950">{company.name}</h2>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {(company.target_roles ?? []).map((role) => (
+                  <span key={role} className="rounded-full bg-brand-50 px-3 py-1 text-sm font-semibold text-brand-700 ring-1 ring-brand-100">
+                    {role}
+                  </span>
+                ))}
+              </div>
+              <Link href={`/companies/${company.id}`} className="mt-6 inline-flex rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
+                View candidates
+              </Link>
+            </article>
+          )) : (
+            <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-slate-600">No companies have been added yet.</p>
+          )}
+        </div>
+      </section>
+    </main>
+  );
+}
