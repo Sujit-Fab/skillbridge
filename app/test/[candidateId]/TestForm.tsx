@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 
 import type { TestQuestion } from "@/lib/test-schemas";
 
 type TestFormProps = {
+  candidateId: string;
   testId: string;
   questions: TestQuestion[];
 };
@@ -15,7 +17,7 @@ type ScoreResult = {
   total_questions: number;
 };
 
-export default function TestForm({ testId, questions }: TestFormProps) {
+export default function TestForm({ candidateId, testId, questions }: TestFormProps) {
   const [result, setResult] = useState<ScoreResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,7 +87,15 @@ export default function TestForm({ testId, questions }: TestFormProps) {
       {error ? <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">{error}</div> : null}
       {result ? (
         <div className="rounded-2xl border border-brand-100 bg-brand-50 p-5 text-brand-950">
-          Score: {result.score}% ({result.correct_count}/{result.total_questions} correct)
+          <p>
+            Score: {result.score}% ({result.correct_count}/{result.total_questions} correct)
+          </p>
+          <Link
+            className="mt-4 inline-flex rounded-full bg-brand-700 px-5 py-2.5 font-semibold text-white transition hover:bg-brand-800"
+            href={`/plan/${candidateId}`}
+          >
+            View your plan
+          </Link>
         </div>
       ) : null}
     </form>
