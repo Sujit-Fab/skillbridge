@@ -50,14 +50,35 @@ function buildPhaseProgress(phasesJson: unknown, progressRows: Array<{ phase_num
 export default async function CandidateProfilePage({ params }: CandidateProfilePageProps) {
   const supabase = createAdminClient();
 
-  const { data: candidate, error: candidateError } = await supabase
-    .from("candidates")
-    .select("id, name, target_role, is_public, likes_count")
-    .eq("id", params.candidateId)
-    .maybeSingle();
+  if (!supabase) {
+    console.error("Failed to initialize Supabase admin client for public candidate profile", {
+      candidateId: params.candidateId,
+      hasSupabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()),
+      hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
+    });
+    throw new Error("Failed to load candidate profile");
+  }
+
+  let candidateResult;
+
+  try {
+    candidateResult = await supabase
+      .from("candidates")
+      .select("id, name, target_role, is_public, likes_count")
+      .eq("id", params.candidateId)
+      .maybeSingle();
+  } catch (error) {
+    console.error("Supabase candidate profile query threw an unexpected error", {
+      candidateId: params.candidateId,
+      error,
+    });
+    throw new Error("Failed to load candidate profile");
+  }
+
+  const { data: candidate, error: candidateError } = candidateResult;
 
   if (candidateError) {
-    console.error("Failed to fetch public candidate profile", {
+    console.error("Supabase candidate profile query failed", {
       candidateId: params.candidateId,
       error: candidateError,
     });
@@ -81,17 +102,29 @@ export default async function CandidateProfilePage({ params }: CandidateProfileP
     );
   }
 
-  const [planResult, progressResult, sponsorshipResult] = await Promise.all([
-    supabase.from("plans").select("phases").eq("candidate_id", candidate.id).maybeSingle(),
-    supabase.from("progress").select("phase_number, status").eq("candidate_id", candidate.id),
-    supabase
-      .from("sponsorships")
-      .select("companies(name)")
-      .eq("candidate_id", candidate.id)
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle(),
-  ]);
+  let planResult;
+  let progressResult;
+  let sponsorshipResult;
+
+  try {
+    [planResult, progressResult, sponsorshipResult] = await Promise.all([
+      supabase.from("plans").select("phases").eq("candidate_id", candidate.id).maybeSingle(),
+      supabase.from("progress").select("phase_number, status").eq("candidate_id", candidate.id),
+      supabase
+        .from("sponsorships")
+        .select("companies(name)")
+        .eq("candidate_id", candidate.id)
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle(),
+    ]);
+  } catch (error) {
+    console.error("Supabase candidate profile detail queries threw an unexpected error", {
+      candidateId: candidate.id,
+      error,
+    });
+    throw new Error("Failed to load candidate profile");
+  }
 
   if (planResult.error) {
     console.error("Failed to fetch public candidate plan", {
