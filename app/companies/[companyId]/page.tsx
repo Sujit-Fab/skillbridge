@@ -51,23 +51,41 @@ export default async function CompanyCandidatesPage({ params }: CompanyCandidate
   }
 
   const candidateIds = (candidates ?? []).map((candidate) => candidate.id);
-  const [{ data: tests }, { data: progressRows }, { data: plans }, { data: gaps }, { data: sponsorships }] = await Promise.all([
+  const [
+    { data: tests },
+    { data: progressRows },
+    { data: plans },
+    { data: gaps },
+    { data: sponsorships, error: sponsorshipsError },
+  ] = await Promise.all([
     candidateIds.length
       ? supabase.from("tests").select("candidate_id, phase_number, score").in("candidate_id", candidateIds).not("score", "is", null)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
     candidateIds.length
       ? supabase.from("progress").select("candidate_id, phase_number, status").in("candidate_id", candidateIds)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
     candidateIds.length
       ? supabase.from("plans").select("candidate_id, phases").in("candidate_id", candidateIds)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
     candidateIds.length
       ? supabase.from("skill_gaps").select("candidate_id, skill_name").in("candidate_id", candidateIds)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
     candidateIds.length
-      ? supabase.from("sponsorships").select("candidate_id").eq("company_id", params.companyId)
-      : Promise.resolve({ data: [] }),
+      ? supabase
+        .from("sponsorships")
+        .select("candidate_id")
+        .eq("company_id", params.companyId)
+        .eq("status", "active")
+      : Promise.resolve({ data: [], error: null }),
   ]);
+
+  if (sponsorshipsError) {
+    console.error("Failed to fetch active sponsorships for company candidates page", {
+      error: sponsorshipsError,
+      companyId: params.companyId,
+    });
+    throw new Error("Failed to load sponsorship status");
+  }
 
   const testsByCandidate = new Map<string, Array<{ phase_number: number; score: number }>>();
   (tests ?? []).forEach((test) => {
