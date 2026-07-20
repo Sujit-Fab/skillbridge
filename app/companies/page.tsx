@@ -4,6 +4,35 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
+const EXPECTED_SUPABASE_PROJECT_REF = "koarsdupbvravvygrqoa";
+const COMPANIES_SELECT_COLUMNS = "id, name, target_roles";
+
+const getSupabaseUrl = () => process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? null;
+
+const getSupabaseProjectRef = (supabaseUrl: string | null) => {
+  if (!supabaseUrl) {
+    return null;
+  }
+
+  try {
+    return new URL(supabaseUrl).hostname.split(".")[0] || null;
+  } catch {
+    return null;
+  }
+};
+
+const getCompaniesQueryLog = (supabaseUrl: string | null) => ({
+  description: `from("companies").select("${COMPANIES_SELECT_COLUMNS}", { count: "exact" }).order("name", { ascending: true })`,
+  table: "companies",
+  select: COMPANIES_SELECT_COLUMNS,
+  filters: [],
+  joins: [],
+  order: { column: "name", ascending: true },
+  restUrl: supabaseUrl
+    ? `${supabaseUrl}/rest/v1/companies?select=${encodeURIComponent(COMPANIES_SELECT_COLUMNS)}&order=name.asc`
+    : null,
+});
+
 type Company = {
   id: string;
   name: string;
@@ -11,11 +40,32 @@ type Company = {
 };
 
 export default async function CompaniesPage() {
+  const supabaseUrl = getSupabaseUrl();
+  const supabaseProjectRef = getSupabaseProjectRef(supabaseUrl);
+  const queryLog = getCompaniesQueryLog(supabaseUrl);
+
+  console.info("Supabase companies page configuration", {
+    supabaseUrl,
+    supabaseProjectRef,
+    expectedSupabaseProjectRef: EXPECTED_SUPABASE_PROJECT_REF,
+    matchesExpectedProject: supabaseProjectRef === EXPECTED_SUPABASE_PROJECT_REF,
+    hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
+  });
+
+  if (supabaseProjectRef !== EXPECTED_SUPABASE_PROJECT_REF) {
+    console.error("Companies page Supabase URL does not match the expected project", {
+      supabaseUrl,
+      supabaseProjectRef,
+      expectedSupabaseProjectRef: EXPECTED_SUPABASE_PROJECT_REF,
+    });
+  }
+
   const supabase = createAdminClient();
 
   if (!supabase) {
     console.error("Failed to initialize Supabase admin client for companies page", {
-      hasSupabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()),
+      supabaseUrl,
+      hasSupabaseUrl: Boolean(supabaseUrl),
       hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
     });
     throw new Error("Failed to load companies");
@@ -24,10 +74,24 @@ export default async function CompaniesPage() {
   let companies: Company[] = [];
 
   try {
-    const { data, error, status, statusText } = await supabase
+    console.info("Running Supabase companies query", queryLog);
+
+    const response = await supabase
       .from("companies")
-      .select("id, name, target_roles")
+      .select(COMPANIES_SELECT_COLUMNS, { count: "exact" })
       .order("name", { ascending: true });
+
+    const { data, error, count, status, statusText } = response;
+
+    console.info("Raw Supabase companies response", {
+      query: queryLog,
+      data,
+      error,
+      count,
+      rowCount: data?.length ?? 0,
+      status,
+      statusText,
+    });
 
     if (error) {
       console.error("Failed to fetch companies with Supabase admin client", {
@@ -43,14 +107,20 @@ export default async function CompaniesPage() {
 
     companies = data ?? [];
   } catch (error) {
-    console.error("Supabase companies query threw an unexpected error", { error });
+    console.error("Supabase companies query threw an unexpected error", { query: queryLog, error });
     throw new Error("Failed to load companies");
   }
 
   if (companies.length === 0) {
     console.warn("Supabase admin client returned zero companies for companies page", {
-      hasSupabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()),
+      query: queryLog,
+      supabaseUrl,
+      supabaseProjectRef,
+      expectedSupabaseProjectRef: EXPECTED_SUPABASE_PROJECT_REF,
+      matchesExpectedProject: supabaseProjectRef === EXPECTED_SUPABASE_PROJECT_REF,
+      hasSupabaseUrl: Boolean(supabaseUrl),
       hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
+      rowCount: companies.length,
     });
   }
 
