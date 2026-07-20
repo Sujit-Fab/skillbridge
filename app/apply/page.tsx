@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 type AnalysisResult = {
@@ -11,9 +11,11 @@ type AnalysisResult = {
 };
 
 export default function ApplyPage() {
+  const router = useRouter();
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingTest, setIsGeneratingTest] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -52,6 +54,37 @@ export default function ApplyPage() {
     }
   }
 
+  async function handleStartSkillTest() {
+    if (!result) {
+      return;
+    }
+
+    setError(null);
+    setIsGeneratingTest(true);
+
+    try {
+      const response = await fetch("/api/generate-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidate_id: result.candidate_id }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Unable to generate baseline test");
+      }
+
+      router.push(`/test/${result.candidate_id}`);
+    } catch (generationError) {
+      setError(
+        generationError instanceof Error
+          ? generationError.message
+          : "Unable to generate baseline test",
+      );
+      setIsGeneratingTest(false);
+    }
+  }
+
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-6 py-12">
       <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">Candidate intake</p>
@@ -72,7 +105,7 @@ export default function ApplyPage() {
           <span className="text-sm font-medium text-slate-700">Bio</span>
           <textarea className="mt-2 min-h-32 w-full rounded-lg border border-slate-300 px-3 py-2" name="bio_text" placeholder="Briefly describe your experience and goals." required />
         </label>
-        <button className="rounded-full bg-brand-700 px-5 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400" disabled={isLoading} type="submit">
+        <button className="rounded-full bg-brand-700 px-5 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400" disabled={isLoading || isGeneratingTest} type="submit">
           {isLoading ? "Analyzing profile..." : "Analyze skill gaps"}
         </button>
       </form>
@@ -107,12 +140,14 @@ export default function ApplyPage() {
               </ul>
             </div>
           </div>
-          <Link
-            className="mt-6 inline-flex rounded-full bg-brand-700 px-5 py-2.5 font-semibold text-white transition hover:bg-brand-800"
-            href={`/test/${result.candidate_id}`}
+          <button
+            className="mt-6 inline-flex rounded-full bg-brand-700 px-5 py-2.5 font-semibold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+            disabled={isGeneratingTest}
+            onClick={handleStartSkillTest}
+            type="button"
           >
-            Start skill test
-          </Link>
+            {isGeneratingTest ? "Generating skill test..." : "Start skill test"}
+          </button>
         </section>
       ) : null}
     </main>
