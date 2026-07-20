@@ -21,14 +21,37 @@ export default async function CompaniesPage() {
     throw new Error("Failed to load companies");
   }
 
-  const { data: companies, error } = await supabase
-    .from("companies")
-    .select("id, name, target_roles")
-    .order("name", { ascending: true });
+  let companies: Company[] = [];
 
-  if (error) {
-    console.error("Failed to fetch companies", { error });
+  try {
+    const { data, error, status, statusText } = await supabase
+      .from("companies")
+      .select("id, name, target_roles")
+      .order("name", { ascending: true });
+
+    if (error) {
+      console.error("Failed to fetch companies with Supabase admin client", {
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        message: error.message,
+        status,
+        statusText,
+      });
+      throw new Error("Failed to load companies");
+    }
+
+    companies = data ?? [];
+  } catch (error) {
+    console.error("Supabase companies query threw an unexpected error", { error });
     throw new Error("Failed to load companies");
+  }
+
+  if (companies.length === 0) {
+    console.warn("Supabase admin client returned zero companies for companies page", {
+      hasSupabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()),
+      hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
+    });
   }
 
   return (
@@ -43,7 +66,7 @@ export default async function CompaniesPage() {
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {(companies as Company[] | null)?.length ? (companies as Company[]).map((company) => (
+          {companies.length ? companies.map((company) => (
             <article key={company.id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-xl font-bold text-slate-950">{company.name}</h2>
               <div className="mt-4 flex flex-wrap gap-2">
