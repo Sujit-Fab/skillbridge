@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   calculateOverallProgress,
   getCurrentPhaseNumber,
@@ -15,6 +15,8 @@ type CandidateProfilePageProps = {
     candidateId: string;
   };
 };
+
+export const dynamic = "force-dynamic";
 
 const statusStyles = {
   completed: "bg-emerald-100 text-emerald-700 ring-emerald-200",
@@ -46,15 +48,24 @@ function buildPhaseProgress(phasesJson: unknown, progressRows: Array<{ phase_num
 }
 
 export default async function CandidateProfilePage({ params }: CandidateProfilePageProps) {
-  const supabase = createClient();
+  const supabase = createAdminClient();
 
   const { data: candidate, error: candidateError } = await supabase
     .from("candidates")
     .select("id, name, target_role, is_public, likes_count")
     .eq("id", params.candidateId)
-    .single();
+    .maybeSingle();
 
-  if (candidateError || !candidate) {
+  if (candidateError) {
+    console.error("Failed to fetch public candidate profile", {
+      candidateId: params.candidateId,
+      error: candidateError,
+    });
+    throw new Error("Failed to load candidate profile");
+  }
+
+  if (!candidate) {
+    console.info("Public candidate profile not found", { candidateId: params.candidateId });
     notFound();
   }
 
@@ -70,7 +81,7 @@ export default async function CandidateProfilePage({ params }: CandidateProfileP
     );
   }
 
-  const [{ data: plan }, { data: progressRows }, { data: sponsorship }] = await Promise.all([
+  const [planResult, progressResult, sponsorshipResult] = await Promise.all([
     supabase.from("plans").select("phases").eq("candidate_id", candidate.id).maybeSingle(),
     supabase.from("progress").select("phase_number, status").eq("candidate_id", candidate.id),
     supabase
@@ -82,10 +93,31 @@ export default async function CandidateProfilePage({ params }: CandidateProfileP
       .maybeSingle(),
   ]);
 
-  const phases = buildPhaseProgress(plan?.phases ?? [], progressRows ?? []);
+  if (planResult.error) {
+    console.error("Failed to fetch public candidate plan", {
+      candidateId: candidate.id,
+      error: planResult.error,
+    });
+  }
+
+  if (progressResult.error) {
+    console.error("Failed to fetch public candidate progress", {
+      candidateId: candidate.id,
+      error: progressResult.error,
+    });
+  }
+
+  if (sponsorshipResult.error) {
+    console.error("Failed to fetch public candidate sponsorship", {
+      candidateId: candidate.id,
+      error: sponsorshipResult.error,
+    });
+  }
+
+  const phases = buildPhaseProgress(planResult.data?.phases ?? [], progressResult.data ?? []);
   const overallProgress = calculateOverallProgress(phases);
   const currentPhaseNumber = getCurrentPhaseNumber(phases);
-  const sponsoredCompany = sponsorship?.companies as { name?: string } | { name?: string }[] | null | undefined;
+  const sponsoredCompany = sponsorshipResult.data?.companies as { name?: string } | { name?: string }[] | null | undefined;
   const companyName = Array.isArray(sponsoredCompany)
     ? sponsoredCompany[0]?.name
     : sponsoredCompany?.name;
