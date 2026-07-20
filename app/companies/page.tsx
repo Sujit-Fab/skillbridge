@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 
 const EXPECTED_SUPABASE_PROJECT_REF = "koarsdupbvravvygrqoa";
 const COMPANIES_SELECT_COLUMNS = "id, name, target_roles";
+const APPROVED_COMPANY_STATUS = "approved";
 
 const getSupabaseUrl = () => process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? null;
 
@@ -22,14 +23,14 @@ const getSupabaseProjectRef = (supabaseUrl: string | null) => {
 };
 
 const getCompaniesQueryLog = (supabaseUrl: string | null) => ({
-  description: `from("companies").select("${COMPANIES_SELECT_COLUMNS}", { count: "exact" }).order("name", { ascending: true })`,
+  description: `from("companies").select("${COMPANIES_SELECT_COLUMNS}", { count: "exact" }).eq("status", "${APPROVED_COMPANY_STATUS}").order("name", { ascending: true })`,
   table: "companies",
   select: COMPANIES_SELECT_COLUMNS,
-  filters: [],
+  filters: [{ column: "status", operator: "eq", value: APPROVED_COMPANY_STATUS }],
   joins: [],
   order: { column: "name", ascending: true },
   restUrl: supabaseUrl
-    ? `${supabaseUrl}/rest/v1/companies?select=${encodeURIComponent(COMPANIES_SELECT_COLUMNS)}&order=name.asc`
+    ? `${supabaseUrl}/rest/v1/companies?select=${encodeURIComponent(COMPANIES_SELECT_COLUMNS)}&status=eq.approved&order=name.asc`
     : null,
 });
 
@@ -79,6 +80,7 @@ export default async function CompaniesPage() {
     const response = await supabase
       .from("companies")
       .select(COMPANIES_SELECT_COLUMNS, { count: "exact" })
+      .eq("status", APPROVED_COMPANY_STATUS)
       .order("name", { ascending: true });
 
     const { data, error, count, status, statusText } = response;
@@ -131,8 +133,11 @@ export default async function CompaniesPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-brand-700">Corporate dashboard</p>
           <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">Companies</h1>
           <p className="mt-3 max-w-2xl text-lg text-slate-600">
-            Browse sponsor companies and review public candidates who are ready for role-aligned support.
+            Browse approved sponsor companies and review public candidates who are ready for role-aligned support.
           </p>
+          <Link href="/companies/register" className="mt-5 inline-flex rounded-full bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-800">
+            Register your company
+          </Link>
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

@@ -27,8 +27,8 @@ export default async function CompanyCandidatesPage({ params }: CompanyCandidate
   }
 
   const [{ data: companies, error: companiesError }, { data: company, error: companyError }] = await Promise.all([
-    supabase.from("companies").select("id, name, target_roles").order("name", { ascending: true }),
-    supabase.from("companies").select("id, name, target_roles").eq("id", params.companyId).maybeSingle(),
+    supabase.from("companies").select("id, name, target_roles").eq("status", "approved").order("name", { ascending: true }),
+    supabase.from("companies").select("id, name, target_roles").eq("id", params.companyId).eq("status", "approved").maybeSingle(),
   ]);
 
   if (companiesError || companyError) {
