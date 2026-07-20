@@ -104,7 +104,7 @@ export default async function CandidatePlanPage({ params }: CandidatePlanPagePro
         </div>
       </section>
 
-      <Link className="mt-8 inline-flex rounded-full border border-brand-200 px-5 py-2.5 font-semibold text-brand-700" href={`/candidate/${candidate.id}`}>
+      <Link className="mt-8 inline-flex rounded-full border border-brand-200 px-5 py-2.5 font-semibold text-brand-700" href={`/candidate/${encodeURIComponent(candidate.id)}`}>
         View public profile
       </Link>
     </main>

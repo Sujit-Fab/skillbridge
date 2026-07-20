@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { generatePlanForCandidate } from "@/lib/plan-generation";
 import { createClient } from "@/lib/supabase/server";
 import { generatedTestSchema } from "@/lib/test-schemas";
 
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
 
     const { data: test, error: testError } = await supabase
       .from("tests")
-      .select("id, questions")
+      .select("id, candidate_id, questions")
       .eq("id", payload.data.test_id)
       .single();
 
@@ -61,12 +62,16 @@ export async function POST(request: Request) {
       throw updateError;
     }
 
+    const generatedPlan = await generatePlanForCandidate(supabase, test.candidate_id);
+
     return NextResponse.json({
       test_id: payload.data.test_id,
       score,
       correct_count: correctCount,
       total_questions: parsedTest.questions.length,
       results,
+      plan: generatedPlan.plan,
+      progress: generatedPlan.progress,
     });
   } catch (error) {
     console.error("Test scoring failed", error);
