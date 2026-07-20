@@ -35,6 +35,9 @@ export default function Home() {
             <Link className="rounded-full border border-slate-300 px-6 py-3 font-semibold text-slate-700 hover:border-brand-500 hover:text-brand-700" href="/candidate/demo">
               View profile placeholder
             </Link>
+            <Link className="px-4 py-3 font-semibold text-slate-600 hover:text-brand-700" href="/companies">
+              For Companies
+            </Link>
           </div>
         </div>
 
