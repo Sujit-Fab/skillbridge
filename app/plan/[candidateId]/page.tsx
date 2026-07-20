@@ -9,6 +9,7 @@ import {
   type PhaseProgress,
 } from "@/lib/progress";
 import { createClient } from "@/lib/supabase/server";
+import { getCandidateProfilePath } from "@/lib/routes";
 
 type CandidatePlanPageProps = {
   params: {
@@ -58,6 +59,9 @@ export default async function CandidatePlanPage({ params }: CandidatePlanPagePro
   ]);
 
   const phases = buildPhaseProgress(plan?.phases ?? [], progressRows ?? []);
+  const publicProfileHref = getCandidateProfilePath(candidate.id);
+
+  console.info(`[plan] View public profile href: ${publicProfileHref}`);
   const overallProgress = calculateOverallProgress(phases);
   const currentPhaseNumber = getCurrentPhaseNumber(phases);
 
@@ -104,7 +108,7 @@ export default async function CandidatePlanPage({ params }: CandidatePlanPagePro
         </div>
       </section>
 
-      <Link className="mt-8 inline-flex rounded-full border border-brand-200 px-5 py-2.5 font-semibold text-brand-700" href={`/candidate/${encodeURIComponent(candidate.id)}`}>
+      <Link className="mt-8 inline-flex rounded-full border border-brand-200 px-5 py-2.5 font-semibold text-brand-700" href={publicProfileHref}>
         View public profile
       </Link>
     </main>

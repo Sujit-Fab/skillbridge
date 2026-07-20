@@ -42,4 +42,4 @@ The migration creates tables for candidates, skill gaps, tests, plans, progress,
 
 - `/` — home page
 - `/apply` — placeholder candidate intake form
-- `/candidate/[id]` — placeholder public candidate profile
+- `/candidate/[candidateId]` — public candidate profile
