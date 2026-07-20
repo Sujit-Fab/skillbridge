@@ -66,7 +66,7 @@ export default async function CandidateTestPage({ params }: CandidateTestPagePro
               Current saved score: {test.score}%
             </div>
           ) : null}
-          <TestForm questions={parsedTest.data.questions} testId={test.id} />
+          <TestForm candidateId={params.candidateId} questions={parsedTest.data.questions} testId={test.id} />
         </>
       ) : null}
     </main>

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 
 type AnalysisResult = {
@@ -106,6 +107,12 @@ export default function ApplyPage() {
               </ul>
             </div>
           </div>
+          <Link
+            className="mt-6 inline-flex rounded-full bg-brand-700 px-5 py-2.5 font-semibold text-white transition hover:bg-brand-800"
+            href={`/test/${result.candidate_id}`}
+          >
+            Start skill test
+          </Link>
         </section>
       ) : null}
     </main>
