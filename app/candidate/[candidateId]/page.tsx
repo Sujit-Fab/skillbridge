@@ -111,12 +111,12 @@ export default async function CandidateProfilePage({ params }: CandidateProfileP
       supabase.from("plans").select("phases").eq("candidate_id", candidate.id).maybeSingle(),
       supabase.from("progress").select("phase_number, status").eq("candidate_id", candidate.id),
       supabase
-        .from("sponsorships")
-        .select("companies(name)")
-        .eq("candidate_id", candidate.id)
-        .eq("status", "active")
-        .limit(1)
-        .maybeSingle(),
+     .from("sponsorships")
+     .select("company_id")
+     .eq("candidate_id", candidate.id)
+     .eq("status", "active")
+     .limit(1)
+     .maybeSingle(),
     ]);
   } catch (error) {
     console.error("Supabase candidate profile detail queries threw an unexpected error", {
@@ -150,11 +150,17 @@ export default async function CandidateProfilePage({ params }: CandidateProfileP
   const phases = buildPhaseProgress(planResult.data?.phases ?? [], progressResult.data ?? []);
   const overallProgress = calculateOverallProgress(phases);
   const currentPhaseNumber = getCurrentPhaseNumber(phases);
-  const sponsoredCompany = sponsorshipResult.data?.companies as { name?: string } | { name?: string }[] | null | undefined;
-  const companyName = Array.isArray(sponsoredCompany)
-    ? sponsoredCompany[0]?.name
-    : sponsoredCompany?.name;
+  let companyName: string | undefined;
 
+  if (sponsorshipResult.data?.company_id) {
+    const { data: companyRow } = await supabase
+      .from("companies")
+      .select("name")
+      .eq("id", sponsorshipResult.data.company_id)
+      .maybeSingle();
+
+    companyName = companyRow?.name;
+  }
   return (
     <main className="min-h-screen bg-gradient-to-b from-brand-50 via-slate-50 to-white px-4 py-8 sm:px-6 lg:px-8">
       <section className="mx-auto max-w-4xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/70">
